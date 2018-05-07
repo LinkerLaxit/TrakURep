@@ -1,0 +1,82 @@
+//
+//  NetworkEngine.h
+//  SonaFire
+//
+//  Created by karamjit.singh on 18/04/12.
+//  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "MKNetworkEngine.h"
+#import <AVFoundation/AVFoundation.h>
+@interface NetworkEngine : MKNetworkEngine
+{
+    
+}
+typedef void (^LoginResponseBlock)(NSString *Response);  
+typedef void (^BrowseUserslistBlock)(NSMutableArray *ResponseArray);
+typedef void (^ReturnDictionary)(NSMutableDictionary *dict);
+
+-(MKNetworkOperation*) loginResponse:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userName:(NSString*)userName password:(NSString *)password token_id:(NSString *)token_id device_type:(NSString *)device_type;
+
+-(MKNetworkOperation*) registerResponse:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userName:(NSString*)userName password:(NSString *)password firstName:(NSString *)firstName lastName:(NSString *)lastName emailID:(NSString *)emailID image:(NSData *)imageData imageType:(NSString *)imageType isArtist:(NSString *)isArtist artist_type:(NSString *)artist_type artist_band:(NSString *)artist_band artist_genre:(NSString *)artist_genre artist_albums:(NSString *)artist_albums artist_location:(NSString *)artist_location artist_members:(NSString *)artist_members token_id:(NSString *)token_id device_type:(NSString *)device_type isfull_userName:(NSString *)isfull_userName;
+
+-(MKNetworkOperation*) ChkUserName:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userName:(NSString*)userName;
+
+-(MKNetworkOperation*) BrowseAllUsers:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userType:(NSString *)userType offset:(NSString *)offset userId:(NSString *)userId;
+
+-(MKNetworkOperation*) GetAllPendingFriendRequests:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset;
+
+-(MKNetworkOperation*) UpdateRequestStatus:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId senderId:(NSString *)senderId isAccepted:(NSString *)isAccepted;
+
+-(MKNetworkOperation*)SendFriendRequest:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId senderId:(NSString *)senderId ;
+
+-(MKNetworkOperation*)LogoutUser:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId token_id:(NSString *)token_id  ;
+
+-(MKNetworkOperation*)EditUserProfile:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId firstName:(NSString*)firstName  lastName:(NSString*)lastName imageData:(NSData*)imageData artist_type:(NSString *)artist_type artist_band:(NSString *)artist_band artist_genre:(NSString *)artist_genre artist_albums:(NSString *)artist_albums artist_location:(NSString *)artist_location artist_members:(NSString *)artist_members isArtist:(NSString *)isArtist isfull_userName:(NSString *)isfull_userName;
+
+-(MKNetworkOperation*) GetAllSongRequests:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset;
+
+-(MKNetworkOperation*) GetAllSongSharedByMe:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId;
+
+-(MKNetworkOperation*) GetAllSongsSharedToMe:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId ;
+
+-(MKNetworkOperation*) UpdateCurrentSong:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId songTitle:(NSString *)songTitle;
+
+-(MKNetworkOperation*) GetNewShares:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset;
+-(MKNetworkOperation*) ArtistUPdates:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset;
+
+-(MKNetworkOperation*) RequestSong:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock songName:(NSString *)songName requested_to:(NSArray *)requested_to requested_by:(NSString *)requested_by;
+
+-(MKNetworkOperation*) ShareMessage:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock message:(NSString *)message sender_id:(NSString *)sender_id receiver_id:(NSArray *)receiver_id;
+
+-(MKNetworkOperation*)TopBarCount:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId;
+-(MKNetworkOperation*)SentFriendRequests:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId;
+
+-(MKNetworkOperation*)ShareSong:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId songName:(NSString *)songName songId:(NSString *)songId Friendsarray:(NSArray *)Friendsarray yt_link:(NSString *)StrLink;
+
+-(MKNetworkOperation*)SongWallData:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset;
+-(void)UploadSongData:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock ;
+-(MKNetworkOperation*) ChkFriendship:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userID:(NSString*)userID;
+
+-(MKNetworkOperation*)GetInboxMessage:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset;
+-(MKNetworkOperation*)GetSentMessage:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset;
+-(MKNetworkOperation*)GetRequestedSongsToMe:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset;
+-(MKNetworkOperation*)GetRequestedSongsByMe:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset;
+-(MKNetworkOperation*) FilteredSongWallFeeds:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset operationId:(NSString *)operationId;
+-(MKNetworkOperation*) MyActivities:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset getType:(NSString *)getType;
+-(MKNetworkOperation*) SongRequestsSharesCount:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId isArtist:(NSString *)isArtist ;
+-(MKNetworkOperation*) ArtistFollowers:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset ;
+-(MKNetworkOperation*) ArtistAllSongs:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset; 
+
+-(MKNetworkOperation*) FollowAnArtist:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock senderId:(NSString *)userId artistId:(NSString *)artistId; 
+-(MKNetworkOperation*) updateSongRequestStatus:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock RequestId:(NSString *)RequestId;
+-(void) multipartDataUpload:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock;
+
+-(MKNetworkOperation*) SearchUsers:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock query:(NSString *)query offset:(NSString *)offset userId:(NSString *)userId;
+
+-(MKNetworkOperation*) SaveFbFriendInvite:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userFbId:(NSString *)userFbId frndFbId:(NSMutableArray *)frndFbId userId:(NSString *)userId;
+
+-(MKNetworkOperation*) SongShareLimitSave:(ReturnDictionary) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId songId:(NSString *)songId;
+-(MKNetworkOperation*) AllShares:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset ;
+@end

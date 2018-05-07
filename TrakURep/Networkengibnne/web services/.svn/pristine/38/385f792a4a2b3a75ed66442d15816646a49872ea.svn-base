@@ -1,0 +1,1806 @@
+//
+//  NetworkEngine.m
+//  SonaFire
+//
+//  Created by karamjit.singh on 18/04/12.
+//  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
+//
+
+#import "NetworkEngine.h"
+#import "JSONKit.h"
+@implementation NetworkEngine
+
+#define kGetLoginResponse @"userlogin"
+#define kRegistrationUrl @"userRegister"
+#define kCheckUserName   @"checkUsername"
+//#define kChkTest   @"test"
+#define kGetAllUsers @"usersList"
+#define kGetPendingRequests @"receivedFriendRequests"
+#define kUpdateRequestStatus @"updateFriendRequest"
+#define kSendFriendReuest @"sendFriendRequest"
+#define kLogoutUrl     @"userLogout"
+#define kEditProfile   @"editProfile"
+#define kListOfSongsRequestFromMe  @"songsRequestedFromMe"
+#define kListOfSongsSharedByMe @"songsSharedByMe"
+#define kListOfSongsSharedToMe @"songsSharedToMe"
+#define kUpdateCurrentSong    @"saveCurrUserSong"
+//#define kGetCurrentSong @"getCurrUserSong"
+#define kGetNewShares @"newSharedSongs"
+#define kArtistUpdates @"artistUpdates"
+#define kRequestSong @"requestSong"
+#define kShareMessage @"shareMessage"
+#define kshareSong   @"shareSong"
+#define kCountonTop @"operationsCountResult"
+#define kSentFriendRequests @"sentFriendRequests"
+#define kmySongWall  @"mySongWall"
+#define kChkFriendshipStatus  @"checkFriendshipStatus"
+#define GetInboxMessages @"receivedMessages"
+#define GetOutboxMessages @"sentMessages"
+#define kTempSongUpload @"uploadSongData"
+#define SongsRequestedByMe @"requestedSongsByMe"
+#define SongsRequestedTome @"requestedSongsToMe"
+#define myFilteredSongWall @"myFilteredSongWall"
+#define shareRequestCount @"shareRequestCount"
+#define myActivities     @"myActivity"
+#define ArtistFollowerList @"myFollowers"
+#define ArtistAllSongsOnSonafire @"allArtistSongs"
+#define GetSongPathToplay @"getSongPath"
+#define FollowArtist @"followArtist"
+#define UpdateSongRequestStatus @"updateRequestStatus"
+
+#define multipartData @"upload_for_ad"
+#define SearchUser @"searchUser"
+#define saveFbInviteFriends    @"saveFbInviteFriends"
+#define updateSharelimit   @"updateShareCount"
+#define AllSharedToBYMe @"songsAllSharedToBYMe"
+/**
+ * Called when the user want to log in.
+ */
+#pragma mark - Login Response Method
+
+-(MKNetworkOperation*) loginResponse:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userName:(NSString*)userName password:(NSString *)password token_id:(NSString *)token_id device_type:(NSString *)device_type {
+    
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userName forKey:@"userName"];
+    [dictLoginCredentials setValue:password forKey:@"password"];
+    [dictLoginCredentials setValue:token_id forKey:@"token_id"];
+    [dictLoginCredentials setValue:device_type forKey:@"device_type"];
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kGetLoginResponse params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+       // NSString *strData=[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+         id object = [data objectFromJSONData];
+         if(object) {
+             
+            // [[NSUserDefaults standardUserDefaults] setValue:[object objectForKey:@"status"] forKey:@"Username"];             
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"isArtist"] forKey:@"isArtist"];
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"emailid"] forKey:@"Email"];
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"firstname"] forKey:@"FirstName"];
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"lastname"] forKey:@"LastName"];
+             NSData *dataImage=[[NSData alloc] initWithContentsOfURL:[NSURL URLWithString:[object valueForKey:@"imageThumbUrl"]]];
+             [[NSUserDefaults standardUserDefaults]setValue:[object valueForKey:@"imageThumbUrl"] forKey:@"imageUrl"];
+             [[NSUserDefaults standardUserDefaults] setObject:dataImage forKey:@"ProfileImage"];
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"curr_song_name"] forKey:@"curr_song_name"];
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"artist_albums"] forKey:@"artist_albums"];
+
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"artist_band"] forKey:@"artist_band"];
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"artist_genre"] forKey:@"artist_genre"];
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"artist_location"] forKey:@"artist_location"];
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"artist_members"] forKey:@"artist_members"];
+             [[NSUserDefaults standardUserDefaults] setValue:[object valueForKey:@"artist_type"] forKey:@"artist_type"];
+             
+             [[NSUserDefaults standardUserDefaults] setObject:[object valueForKey:@"userId"] forKey:@"userId"];
+             [[NSUserDefaults standardUserDefaults] setValue:@"Self" forKey:@"userType"];
+         }
+         
+         
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark- Register Response Method
+/**
+ * Called when the user want to register .
+ */
+-(MKNetworkOperation*) registerResponse:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userName:(NSString*)userName password:(NSString *)password firstName:(NSString *)firstName lastName:(NSString *)lastName emailID:(NSString *)emailID image:(NSData *)imageData imageType:(NSString *)imageType isArtist:(NSString *)isArtist artist_type:(NSString *)artist_type artist_band:(NSString *)artist_band artist_genre:(NSString *)artist_genre artist_albums:(NSString *)artist_albums artist_location:(NSString *)artist_location artist_members:(NSString *)artist_members token_id:(NSString *)token_id device_type:(NSString *)device_type isfull_userName:(NSString *)isfull_userName
+{
+    NSMutableDictionary *dictRegister=[[NSMutableDictionary alloc] init];
+    [dictRegister setValue:userName forKey:@"userName"];
+    [dictRegister setValue:password forKey:@"password"];
+    [dictRegister setValue:firstName forKey:@"firstname"];
+    [dictRegister setValue:lastName forKey:@"lastname"];
+    [dictRegister setValue:emailID forKey:@"emailid"];
+    [dictRegister setValue:isArtist forKey:@"isArtist"];
+    NSString *strImage=[imageData base64EncodedString] ;
+    [dictRegister setValue:strImage forKey:@"imageData"];
+    [dictRegister setValue:imageType forKey:@"imageType"];
+    [dictRegister setValue:artist_type forKey:@"artist_type"];
+    [dictRegister setValue:artist_band forKey:@"artist_band"];
+    [dictRegister setValue:artist_genre forKey:@"artist_genre"];
+    [dictRegister setValue:artist_albums forKey:@"artist_albums"];
+    [dictRegister setValue:artist_location forKey:@"artist_location"];
+    [dictRegister setValue:artist_members forKey:@"artist_members"];
+    [dictRegister setValue:token_id forKey:@"token_id"];
+    [dictRegister setValue:device_type forKey:@"device_type"];
+     [dictRegister setValue:isfull_userName forKey:@"isfull_userName"];
+    
+    if([Appdelegate dictFBUserInfo])
+    {
+        [dictRegister setValue:[[Appdelegate dictFBUserInfo] valueForKey:@"id"] forKey:@"social_id"];
+        [dictRegister setValue:@"fb" forKey:@"social_type"];
+    }
+    
+    NSString *jsonString =   [dictRegister jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kRegistrationUrl params:httpDict httpMethod:@"POST"];
+   
+  
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+                 
+         [[NSUserDefaults standardUserDefaults] setObject:[[object valueForKey:@"userId"] stringValue]forKey:@"userId"];
+         
+         
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+
+#pragma mark- Check UserName Availability
+
+/**
+ * Called if we want to check the availability of user name.
+ * Parameter= Username
+ */
+-(MKNetworkOperation*) ChkUserName:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userName:(NSString*)userName
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    [dictUserName setValue:userName forKey:@"userName"];
+   
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kCheckUserName params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+
+}
+
+#pragma mark - Browse Users listing
+/**
+ * Called to get the list of different type of/all users users on sonafire.
+ */
+-(MKNetworkOperation*) BrowseAllUsers:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userType:(NSString *)userType offset:(NSString *)offset userId:(NSString *)userId
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    [dictUserName setValue:userType forKey:@"userType"];
+    [dictUserName setValue:offset forKey:@"offset"];
+    [dictUserName setValue:userId forKey:@"userId"];
+    [dictUserName setValue:[[NSUserDefaults standardUserDefaults]valueForKey:@"userId"] forKey:@"loggedinUserId"];
+    
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    MKNetworkOperation *op = [self operationWithPath:kGetAllUsers params:httpDict httpMethod:@"POST"];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"users"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+
+}
+
+#pragma mark - Get All Pending Friend requests
+/**
+ * Called to get all the pending friend requests for the logged in user.
+ */
+
+-(MKNetworkOperation*) GetAllPendingFriendRequests:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+   
+    [dictUserName setValue:userId forKey:@"userId"];
+    [dictUserName setValue:@"1" forKey:@"operation_1d"];
+    [dictUserName setValue:offset forKey:@"offset"];
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kGetPendingRequests params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"FriendRequests"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+
+}
+
+#pragma mark - UpdateRequestStatus (Accept/Reject)
+/**
+ * Called to update the request status on servere that user has accepted or rejected the user's request.
+ */
+
+-(MKNetworkOperation*) UpdateRequestStatus:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId senderId:(NSString *)senderId isAccepted:(NSString *)isAccepted
+{
+    
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userId forKey:@"userId"];
+    [dictLoginCredentials setValue:senderId forKey:@"senderId"];
+     [dictLoginCredentials setValue:isAccepted forKey:@"isAccepted"];
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kUpdateRequestStatus params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         
+         id object = [data objectFromJSONData];
+                  
+         
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark- SendFriendRequest
+/**
+ * Called if a user want to send a friend request to the other user.
+ */
+-(MKNetworkOperation*)SendFriendRequest:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId senderId:(NSString *)senderId 
+{
+    
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:senderId forKey:@"senderId"];
+    [dictLoginCredentials setValue:userId forKey:@"receiverId"];
+   
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kSendFriendReuest params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+        
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark - Logout User
+
+/**
+ * Called when the user want to log out of the application.
+ */
+
+-(MKNetworkOperation*)LogoutUser:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId token_id:(NSString *)token_id
+{
+    
+    NSMutableDictionary *dictLogout=[[NSMutableDictionary alloc] init];
+   
+    [dictLogout setValue:userId forKey:@"userId"];
+    [dictLogout setValue:token_id forKey:@"token_id"];
+    
+    NSString *jsonString =   [dictLogout jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kLogoutUrl params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark - Edit Profile
+
+/**
+ * Called when the user want to Edit his profile.
+ */
+
+-(MKNetworkOperation*)EditUserProfile:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId firstName:(NSString*)firstName  lastName:(NSString*)lastName imageData:(NSData*)imageData artist_type:(NSString *)artist_type artist_band:(NSString *)artist_band artist_genre:(NSString *)artist_genre artist_albums:(NSString *)artist_albums artist_location:(NSString *)artist_location artist_members:(NSString *)artist_members isArtist:(NSString *)isArtist isfull_userName:(NSString *)isfull_userName
+{
+    
+    NSMutableDictionary *dictEditUser=[[NSMutableDictionary alloc] init];
+    
+    [dictEditUser setValue:userId forKey:@"userId"];
+    [dictEditUser setValue:firstName forKey:@"firstname"];
+    [dictEditUser setValue:lastName forKey:@"lastname"];
+    [dictEditUser setValue:isArtist forKey:@"isArtist"];
+    [dictEditUser setValue:artist_type forKey:@"artist_type"];
+    [dictEditUser setValue:artist_band forKey:@"artist_band"];
+    [dictEditUser setValue:artist_genre forKey:@"artist_genre"];
+    [dictEditUser setValue:artist_albums forKey:@"artist_albums"];
+    [dictEditUser setValue:artist_location forKey:@"artist_location"];
+    [dictEditUser setValue:artist_members forKey:@"artist_members"];
+     [dictEditUser setValue:isfull_userName forKey:@"showfull_username"];
+    
+    NSString *strImage=[imageData base64EncodedString] ;
+    [dictEditUser setValue:strImage forKey:@"imageData"];
+    
+    NSString *strImageName;
+    if(![[[NSUserDefaults standardUserDefaults] valueForKey:@"imageUrl"] isEqualToString:@""])
+    strImageName=[[[NSUserDefaults standardUserDefaults] valueForKey:@"imageUrl"] stringByReplacingOccurrencesOfString:@"http://sonafire.netsmartz.us/media/images/thumbnail/"withString:@""];
+    else
+        strImageName=@"";
+    
+    [dictEditUser setValue:strImageName forKey:@"existImageName"];
+    [dictEditUser setValue:@"JPEG" forKey:@"imageType"];
+
+    NSString *jsonString =   [dictEditUser jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kEditProfile params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+                id object = [data objectFromJSONData];
+         
+         
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark- SongsRequestFromMe
+/**
+ * Called when the user want to see the song requests from him.
+ */
+
+-(MKNetworkOperation*) GetAllSongRequests:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    
+    [dictUserName setValue:userId forKey:@"userId"];
+    [dictUserName setValue:@"2" forKey:@"operation_1d"];
+    [dictUserName setValue:offset forKey:@"offset"];
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kListOfSongsRequestFromMe params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+        
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"SongsRequestedToMe"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark - SongsSharedBy Me
+
+/**
+ * Called when the user want to see all the songs shared by him to his friends.
+ */
+
+-(MKNetworkOperation*) GetAllSongSharedByMe:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    
+    [dictUserName setValue:userId forKey:@"userId"];
+    
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kListOfSongsSharedByMe params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"SongsSharedByMe"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark - SongsShared To Me
+/**
+ * Called when the user want to see all the songs shared to him weather by his friends or his favorite artists.
+ */
+-(MKNetworkOperation*) GetAllSongsSharedToMe:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId 
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    
+    [dictUserName setValue:userId forKey:@"userId"];
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kListOfSongsSharedToMe params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         
+         id object = [data objectFromJSONData];
+         
+         completionBlock([object valueForKey:@"SongsSharedToMe"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark - UpdateCurrentSong
+/**
+ * this function is used to update the user's currently listening song to the server so that other users can see that.
+ */
+
+-(MKNetworkOperation*) UpdateCurrentSong:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString*)userId songTitle:(NSString *)songTitle
+{
+    
+    NSMutableDictionary *dictLogout=[[NSMutableDictionary alloc] init];
+    [dictLogout setValue:songTitle forKey:@"songName"];
+    [dictLogout setValue:userId forKey:@"userId"];
+    
+    NSString *jsonString =   [dictLogout jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    NSLog(@"==== jsonString ===%@",jsonString);
+    MKNetworkOperation *op = [self operationWithPath:kUpdateCurrentSong params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+        
+         id object = [data objectFromJSONData];
+                  
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark - New shares
+/**
+ * Called when the user want to see all the new shares tp him. On top bar 3rd icon click.
+ */
+
+-(MKNetworkOperation*) GetNewShares:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    
+    [dictUserName setValue:userId forKey:@"userId"];
+    [dictUserName setValue:@"3" forKey:@"operation_1d"];
+    [dictUserName setValue:offset forKey:@"offset"];
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kGetNewShares params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"NewSharedSongs"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+
+}
+
+#pragma mark - ArtistUPdates 
+/**
+ * Called when the user want to see all his favorite artist's updates. On top bar 4th icon click
+ */
+-(MKNetworkOperation*) ArtistUPdates:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    
+    [dictUserName setValue:userId forKey:@"userId"];
+    [dictUserName setValue:@"4" forKey:@"operation_1d"];
+    [dictUserName setValue:offset forKey:@"offset"];
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kArtistUpdates params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"latestUpdates"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+
+
+#pragma mark- Requets a song
+/**
+ * Called when the user want to request a song from his friend or favorite artist.
+ */
+
+-(MKNetworkOperation*) RequestSong:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock songName:(NSString *)songName requested_to:(NSArray *)requested_to requested_by:(NSString *)requested_by
+{
+    
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:songName forKey:@"songName"];
+    [dictLoginCredentials setValue:requested_by forKey:@"requested_by"];
+    [dictLoginCredentials setValue:requested_to forKey:@"requested_to"];
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kRequestSong params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+       
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark- Share a Message
+
+/**
+ * Called when the user want to share a message to his friends or on his wall post.
+ */
+
+-(MKNetworkOperation*) ShareMessage:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock message:(NSString *)message sender_id:(NSString *)sender_id receiver_id:(NSArray *)receiver_id
+{
+    
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:message forKey:@"message"];
+    [dictLoginCredentials setValue:sender_id forKey:@"sender_id"];
+    [dictLoginCredentials setValue:receiver_id forKey:@"receiver_id"];
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kShareMessage params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+     
+         id object = [data objectFromJSONData];
+                  
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark- Top bar count
+/**
+ * this function is used to get the count of top bar notifications count corresponding to the logged in user id.
+ */
+
+-(MKNetworkOperation*)TopBarCount:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId
+{
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userId forKey:@"userId"];
+  
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kCountonTop params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         NSData *data = [completedOperation responseData];
+        // NSString *str=[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+         id object = [data objectFromJSONData];
+         NSMutableArray *arrCounts=[[NSMutableArray alloc]init];
+         if([object valueForKey:@"1"])
+         {
+         [arrCounts addObject:[object valueForKey:@"1"] ];
+          [arrCounts addObject:[object valueForKey:@"2"]];
+          [arrCounts addObject:[object valueForKey:@"3"]];
+          [arrCounts addObject:[object valueForKey:@"4"]];
+         }
+         
+         completionBlock(arrCounts);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    [self enqueueOperation:op];
+    
+    return op;
+
+}
+
+#pragma mark- All sent friend requests
+
+/**
+ * Called when the user want to check all his sent friend requests.
+ */
+
+-(MKNetworkOperation*)SentFriendRequests:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId
+{
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userId forKey:@"userId"];
+    
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kSentFriendRequests params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+                  
+         completionBlock([object valueForKey:@"SentFriendRequests"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    [self enqueueOperation:op];
+    
+    return op;
+    
+
+}
+
+#pragma mark- Share Song
+/**
+ * Called when the user want to share a song with his friend corresponding to the song id. user will have songid when the song is successfully uploaded to the server using "UploadSongData" function of this same class
+ */
+
+-(MKNetworkOperation*)ShareSong:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId songName:(NSString *)songName songId:(NSString *)songId Friendsarray:(NSArray *)Friendsarray yt_link:(NSString *)StrLink
+{
+    
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userId forKey:@"senderId"];
+    [dictLoginCredentials setValue:songName forKey:@"songName"];
+    [dictLoginCredentials setValue:Friendsarray forKey:@"receiverId"];
+    [dictLoginCredentials setValue:songId forKey:@"songId"];
+    [dictLoginCredentials setValue:StrLink forKey:@"yt_link"];
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kshareSong params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+       
+         id object = [data objectFromJSONData];
+         
+         completionBlock([[object objectForKey:@"status"] stringValue]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+
+}
+
+
+#pragma mark- Song Wall Data
+/**
+ * This function pulls the main sound board/Feed screen data from the server.
+ */
+
+-(MKNetworkOperation*)SongWallData:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset
+{
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userId forKey:@"userId"];
+    [dictLoginCredentials setValue:offset forKey:@"offset"];
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kmySongWall params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         completionBlock([object valueForKey:@"SongWallData"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    [self enqueueOperation:op];
+    
+    return op;
+    
+
+}
+
+#pragma mark - Song Upload- Using base64EncodedString - Old method 
+/**
+ * Called if we want to send the song as base 64 string to the server to share.
+ */
+
+-(void)UploadSongData:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock 
+{
+    __block  MKNetworkOperation *op;
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];    
+    
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+        
+    NSURL * url = [[[Appdelegate arrSelectedSongs] objectAtIndex:0] valueForProperty: MPMediaItemPropertyAssetURL];
+    NSMutableArray *arrType=[[NSMutableArray alloc] init];
+    arrType=[[[url absoluteString] componentsSeparatedByString:@"."] mutableCopy];
+    AVURLAsset *songAsset = [AVURLAsset URLAssetWithURL: url options:nil];
+    NSLog (@"compatible presets for songAsset: %@",[AVAssetExportSession exportPresetsCompatibleWithAsset:songAsset]);    
+    AVAssetExportSession *exporter = [[AVAssetExportSession alloc]
+                                      initWithAsset: songAsset
+                                      presetName: AVAssetExportPresetAppleM4A];
+    
+    NSLog (@"created exporter. supportedFileTypes: %@", exporter.supportedFileTypes);
+    
+    exporter.outputFileType = @"com.apple.m4a-audio";
+    
+    NSString *exportFile = [documentsDirectory stringByAppendingPathComponent: @"item.m4a"];
+    
+    NSError *error1;
+    
+    if([[NSFileManager defaultManager] fileExistsAtPath:exportFile]) 
+    {
+        
+        [[NSFileManager defaultManager] removeItemAtPath:exportFile error:&error1];
+    }
+    
+    NSURL* exportURL = [NSURL fileURLWithPath:exportFile] ;
+    
+    exporter.outputURL = exportURL; 
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    // do the export
+    [exporter exportAsynchronouslyWithCompletionHandler:^{
+        
+        NSData *data1 = [NSData dataWithContentsOfFile: [documentsDirectory stringByAppendingPathComponent: @"item.m4a"]];
+        
+        int exportStatus = exporter.status;
+        switch (exportStatus) {
+                
+            case AVAssetExportSessionStatusFailed: {
+                
+                // log error to text view
+                NSError *exportError = exporter.error;
+                
+                NSLog (@"AVAssetExportSessionStatusFailed: %@", exportError);
+                
+                //      errorView.text = exportError ? [exportError description] : @"Unknown failure";
+                
+                //errorView.hidden = NO;
+                
+                break;
+            }
+                
+            case AVAssetExportSessionStatusCompleted: {
+                
+                NSLog (@"AVAssetExportSessionStatusCompleted");
+                NSString *str=[data1 base64EncodedString];
+                [dictLoginCredentials setValue:str forKey:@"songData"];
+                [dictLoginCredentials setValue:[NSString stringWithFormat:@"%d",[data1 length]] forKey:@"songBytes"];
+                [dictLoginCredentials setValue:[[[arrType objectAtIndex:1] componentsSeparatedByString:@"?"] objectAtIndex:0] forKey:@"type"];
+                [dictLoginCredentials setValue:[[[Appdelegate arrSelectedSongs] objectAtIndex:0] valueForProperty: MPMediaItemPropertyTitle] forKey:@"songName"];
+                [dictLoginCredentials setValue:[[NSUserDefaults standardUserDefaults]valueForKey:@"userId"] forKey:@"userId"];
+                NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+                
+                [httpDict setValue:jsonString forKey:@"body_dict"];
+                op = [self operationWithPath:kTempSongUpload params:httpDict httpMethod:@"POST"];
+                
+                [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+                [op onCompletion:^(MKNetworkOperation *completedOperation)
+                 {
+                     NSData *data = [completedOperation responseData];
+                     
+                     id object = [data objectFromJSONData];
+                     completionBlock([object valueForKey:@"songId"]);
+                     
+                 }onError:^(NSError* error) {
+                     
+                     errorBlock(error);
+                 }];
+                [self enqueueOperation:op];
+                  
+                break;
+            }
+                
+            case AVAssetExportSessionStatusUnknown: { NSLog (@"AVAssetExportSessionStatusUnknown");
+                break; } case AVAssetExportSessionStatusExporting: { NSLog (@"AVAssetExportSessionStatusExporting"); break; }
+                
+            case AVAssetExportSessionStatusCancelled: { NSLog (@"AVAssetExportSessionStatusCancelled");
+                break; }
+                
+            case AVAssetExportSessionStatusWaiting: { NSLog (@"AVAssetExportSessionStatusWaiting"); break; }
+                
+            default: 
+            { NSLog (@"didn't get export status"); break; } }
+    }];    
+   
+   
+
+}
+
+#pragma mark- Chk Friendship Status
+/**
+ * This function is used to check the friendship satus of two users to determine weather the user can send a friend request to the user or not.
+ */
+
+-(MKNetworkOperation*) ChkFriendship:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userID:(NSString*)userID
+{
+      NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+      [dictUserName setValue:userID forKey:@"userId"];
+    [dictUserName setValue:[[NSUserDefaults standardUserDefaults] valueForKey:@"userId"] forKey:@"currUserId"];
+    
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:kChkFriendshipStatus params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         [[NSUserDefaults standardUserDefaults] setValue:[object objectForKey:@"FriendshipStatus"] forKey:@"FriendshipStatus"];
+         completionBlock([object objectForKey:@"FriendshipStatus"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark - Get Inbox Messages
+/**
+ * This function pulls all the inbox messages of the logged in user.
+ */
+-(MKNetworkOperation*)GetInboxMessage:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset
+{
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userId forKey:@"userId"];
+    [dictLoginCredentials setValue:offset forKey:@"offset"];
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:GetInboxMessages params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         completionBlock([object valueForKey:@"receivedMessages"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    [self enqueueOperation:op];
+    
+    return op;
+    
+    
+}
+
+#pragma mark - Get Sent Messages
+
+/**
+ * This function pulls all the outbox messages of the logged in user.
+ */ 
+
+-(MKNetworkOperation*)GetSentMessage:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset
+{
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userId forKey:@"userId"];
+    [dictLoginCredentials setValue:offset forKey:@"offset"];
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:GetOutboxMessages params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         completionBlock([object valueForKey:@"sentMessages"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    [self enqueueOperation:op];
+    
+    return op;
+    
+    
+}
+
+#pragma mark - Songs Requested To Me
+
+/**
+ * This function is used to fetch the list of songs requested by other users from the logged in user.
+ */ 
+
+-(MKNetworkOperation*)GetRequestedSongsToMe:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset
+{
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userId forKey:@"userId"];
+    [dictLoginCredentials setValue:offset forKey:@"offset"];
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:SongsRequestedTome params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         completionBlock([object valueForKey:@"RequestedSongsToMe"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    [self enqueueOperation:op];
+    
+    return op;
+
+}
+
+#pragma mark - Songs Requested By Me
+
+/**
+ *  This function is used to fetch the list of songs requested by the user from the other users..
+ */ 
+
+-(MKNetworkOperation*)GetRequestedSongsByMe:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset
+{
+    NSMutableDictionary *dictLoginCredentials=[[NSMutableDictionary alloc] init];
+    [dictLoginCredentials setValue:userId forKey:@"userId"];
+    [dictLoginCredentials setValue:offset forKey:@"offset"];
+    
+    NSString *jsonString =   [dictLoginCredentials jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:SongsRequestedByMe params:httpDict httpMethod:@"POST"];
+    [op setPostDataEncoding:MKNKPostDataEncodingTypeJSON];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         completionBlock([object valueForKey:@"RequestedSongsByMe"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    [self enqueueOperation:op];
+    
+    return op;
+
+}
+
+#pragma mark - Filtered Song Wall Feeds
+
+/**
+ *  This function returns the filtured results of main sound board/feed screen. called on the bottom bar tabs.
+ */ 
+
+-(MKNetworkOperation*) FilteredSongWallFeeds:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset operationId:(NSString *)operationId
+{
+    NSMutableDictionary *dictSongWall=[[NSMutableDictionary alloc] init];
+    
+    [dictSongWall setValue:userId forKey:@"userId"];
+    [dictSongWall setValue:offset forKey:@"offset"];
+    [dictSongWall setValue:operationId forKey:@"operationId"];
+    NSString *jsonString =   [dictSongWall jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:myFilteredSongWall params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"SongWallData"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+}
+
+#pragma mark - My Activities
+
+/**
+ *  This function is used to fetch the list of activities involving the logged in user.
+ */ 
+
+-(MKNetworkOperation*) MyActivities:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset getType:(NSString *)getType
+{
+    NSMutableDictionary *dictSongWall=[[NSMutableDictionary alloc] init];
+    
+    [dictSongWall setValue:userId forKey:@"userId"];
+    [dictSongWall setValue:offset forKey:@"offset"];
+    [dictSongWall setValue:getType forKey:@"getType"];
+  
+    NSString *jsonString =   [dictSongWall jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:myActivities params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+        
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"MyActivityData"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+
+#pragma mark - SharesRequestsCount
+
+/**
+ *  This function is used to fetch the count of songs requests and shares from the logged in user.
+ */ 
+
+-(MKNetworkOperation*) SongRequestsSharesCount:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId isArtist:(NSString *)isArtist
+{
+    NSMutableDictionary *dictSongWall=[[NSMutableDictionary alloc] init];
+    
+    [dictSongWall setValue:userId forKey:@"userId"];
+    [dictSongWall setValue:isArtist forKey:@"isArtist"];
+    NSString *jsonString =   [dictSongWall jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:shareRequestCount params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock(object);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+
+#pragma mark- Artist followers list
+
+/**
+ *  This function is used to fetch the list of followers of an artist/Fav artist.
+ */ 
+
+-(MKNetworkOperation*) ArtistFollowers:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset 
+{
+    NSMutableDictionary *dictSongWall=[[NSMutableDictionary alloc] init];
+    
+    [dictSongWall setValue:userId forKey:@"artistId"];
+    [dictSongWall setValue:[[NSUserDefaults standardUserDefaults]valueForKey:@"userId"] forKey:@"loggedinUserId"];
+    [dictSongWall setValue:offset forKey:@"offset"];
+    NSString *jsonString =   [dictSongWall jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:ArtistFollowerList params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+        
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"followers"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+
+#pragma mark - Artist's ALL Songs Data(On sonafire only)
+
+/**
+ *  This function is used to fetch the list of all songs of an artist on sonafire.
+ */ 
+
+-(MKNetworkOperation*) ArtistAllSongs:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset 
+{
+    NSMutableDictionary *dictSongWall=[[NSMutableDictionary alloc] init];
+    
+    [dictSongWall setValue:userId forKey:@"artistId"];
+    [dictSongWall setValue:offset forKey:@"offset"];
+    NSString *jsonString =   [dictSongWall jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:ArtistAllSongsOnSonafire params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+       
+         id object = [data objectFromJSONData];
+                  
+         completionBlock([object valueForKey:@"ArtistSongs"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+
+#pragma mark - Follow an artist
+
+/**
+ *  called when the user wants to follow an artist.
+ */ 
+
+-(MKNetworkOperation*) FollowAnArtist:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock senderId:(NSString *)userId artistId:(NSString *)artistId
+{
+    NSMutableDictionary *dictSongWall=[[NSMutableDictionary alloc] init];
+    
+    [dictSongWall setValue:artistId forKey:@"artistId"];
+    [dictSongWall setValue:userId forKey:@"senderId"];
+    NSString *jsonString =   [dictSongWall jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:FollowArtist params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+       
+         id object = [data objectFromJSONData];
+                  
+         completionBlock([object valueForKey:@"status"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+
+#pragma mark -Update song request status
+
+/**
+ *  This function is used to update the friend request status on server that weather the request is accepted or rejected.
+ */ 
+
+-(MKNetworkOperation*) updateSongRequestStatus:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock RequestId:(NSString *)RequestId
+{
+    NSMutableDictionary *dictSongWall=[[NSMutableDictionary alloc] init];
+    
+    [dictSongWall setValue:RequestId forKey:@"requestId"];
+   
+    NSString *jsonString =   [dictSongWall jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:UpdateSongRequestStatus params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+        
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"status"] );
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+
+#pragma mark- Multipart Data-currently using
+
+/**
+ *  This function is used to upload the song on server for sharing currently using.
+ */ 
+-(void) multipartDataUpload:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock 
+{
+    
+    [Appdelegate StartUploadAnimation];
+    NSURL * url;
+   
+    for(int i=0;i<[Appdelegate arrSelectedSongs].count;i++)
+   // if([[Appdelegate arrSelectedSongs] count]>0)
+    {
+        url = [[[Appdelegate arrSelectedSongs] objectAtIndex:i] valueForProperty: MPMediaItemPropertyAssetURL];
+       
+        NSString *strNme=[[[Appdelegate arrSelectedSongs] objectAtIndex:i] valueForProperty: MPMediaItemPropertyTitle];
+       
+        NSMutableArray *arrType=[[NSMutableArray alloc] init];
+        arrType=[[[url absoluteString] componentsSeparatedByString:@"."] mutableCopy];   
+        strNme=[strNme stringByAppendingString:@"."];
+        strNme=[strNme stringByAppendingString:[[[arrType objectAtIndex:1] componentsSeparatedByString:@"?"] objectAtIndex:0]];
+       
+        [[NSUserDefaults standardUserDefaults]setValue:strNme forKey:@"SongName"];
+        
+        /****************************************** *********************************************************/
+      
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        
+        NSString *documentsDirectory = [paths objectAtIndex:0];
+        AVURLAsset *songAsset = [AVURLAsset URLAssetWithURL: url options:nil];
+        NSLog (@"compatible presets for songAsset: %@",[AVAssetExportSession exportPresetsCompatibleWithAsset:songAsset]);    
+        AVAssetExportSession *exporter = [[AVAssetExportSession alloc]
+                                          initWithAsset: songAsset
+                                          presetName: AVAssetExportPresetAppleM4A];
+        
+        NSLog (@"created exporter. supportedFileTypes: %@", exporter.supportedFileTypes);
+        
+        exporter.outputFileType = @"com.apple.m4a-audio";
+        
+        NSString *exportFile = [documentsDirectory stringByAppendingPathComponent: @"item.m4a"];
+        
+        NSError *error1;
+        
+        if([[NSFileManager defaultManager] fileExistsAtPath:exportFile]) 
+        {
+            
+            [[NSFileManager defaultManager] removeItemAtPath:exportFile error:&error1];
+        }
+        
+        NSURL* exportURL = [NSURL fileURLWithPath:exportFile] ;
+        
+        exporter.outputURL = exportURL; 
+        // do the export
+        
+        [exporter exportAsynchronouslyWithCompletionHandler:^{
+            
+                        
+            
+            int exportStatus = exporter.status;
+            switch (exportStatus) {
+                    
+                case AVAssetExportSessionStatusFailed: {
+                    
+                    // log error to text view
+                    NSError *exportError = exporter.error;
+                    
+                    NSLog (@"AVAssetExportSessionStatusFailed: %@", exportError);
+                    [Appdelegate StopUploadAnimation];
+                    //      errorView.text = exportError ? [exportError description] : @"Unknown failure";
+                    
+                    //errorView.hidden = NO;
+                    
+                    break;
+                }
+                    
+                case AVAssetExportSessionStatusCompleted: {
+                    
+                    NSLog (@"AVAssetExportSessionStatusCompleted");
+                    dispatch_sync(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                        NSData *data1  = [NSData dataWithContentsOfFile: [documentsDirectory stringByAppendingPathComponent: @"item.m4a"]];
+                        
+                        NSLog (@"AVAssetExportSessionStatusCompleted   111111");
+                        [[NSUserDefaults standardUserDefaults] setObject:data1 forKey:@"data1"];
+                        
+                        MKNetworkOperation *op = [self operationWithPath:kTempSongUpload params:nil httpMethod:@"POST"];
+                        
+                        NSString *strKey=@"audioFile";
+                        strKey=[strKey stringByAppendingString:@"-"];
+                        strKey=[strKey stringByAppendingString:[[NSUserDefaults standardUserDefaults]valueForKey:@"userId"]];
+                        NSLog( @"Key is %@",strKey );
+                        [[NSUserDefaults standardUserDefaults] setValue:@"multiPart" forKey:@"multiPart"];
+                        [op addFile:[url absoluteString] forKey:strKey mimeType:@"multipart/form-data"];
+                        //[op addFile:[[NSBundle mainBundle]pathForResource:@"Back ground music to game" ofType:@"mp3"] forKey:strKey mimeType:@"multipart/form-data"];
+                        NSLog( @"Operation is %@",op );
+                        NSLog (@"AVAssetExportSessionStatusCompleted 2222222");
+                        [op setFreezable:YES];
+                        NSLog (@"AVAssetExportSessionStatusCompleted 333");
+                         [Appdelegate StopUploadAnimation];
+                        [op onCompletion:^(MKNetworkOperation *completedOperation)
+                         {
+                             NSLog (@"AVAssetExportSessionStatusCompleted 3333333 ");
+                             [Appdelegate StopUploadAnimation];
+                             NSData *data = [completedOperation responseData];
+                             id object = [data objectFromJSONData];
+                             completionBlock([[object valueForKey:@"songId"] stringValue]);
+                             
+                         }onError:^(NSError* error) {
+                             
+                             errorBlock(error);
+                         }];
+                        
+                        [self enqueueOperation:op];
+                    }) ;
+
+                    break;
+                    
+                }
+                    
+                case AVAssetExportSessionStatusUnknown: { NSLog (@"AVAssetExportSessionStatusUnknown");
+                    [Appdelegate StopUploadAnimation];
+                    break; } case AVAssetExportSessionStatusExporting: { NSLog (@"AVAssetExportSessionStatusExporting"); break; }
+                    
+                case AVAssetExportSessionStatusCancelled: { NSLog (@"AVAssetExportSessionStatusCancelled");
+                    [Appdelegate StopUploadAnimation];
+                    break; }
+                    
+                case AVAssetExportSessionStatusWaiting: { NSLog (@"AVAssetExportSessionStatusWaiting");
+                    [Appdelegate StopUploadAnimation];break; }
+                    
+                default: 
+                { NSLog (@"didn't get export status"); break; } }
+            
+            
+        }];
+        
+      /***********************************   **************************************************************/  
+        
+        
+        
+    }
+   
+     
+}
+
+
+#pragma mark - Search user 
+/**
+ *  This function is used to search the users on sonafire as per logged in user's search query.
+ */ 
+-(MKNetworkOperation*) SearchUsers:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock query:(NSString *)query offset:(NSString *)offset userId:(NSString *)userId
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    [dictUserName setValue:query forKey:@"query"];
+    [dictUserName setValue:offset forKey:@"offset"];
+    [dictUserName setValue:userId forKey:@"userId"];
+    
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    MKNetworkOperation *op = [self operationWithPath:SearchUser params:httpDict httpMethod:@"POST"];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+       
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"results"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+    
+
+}
+
+#pragma mark -  SaveFbFriendInvite
+/**
+ *  This function is used to SaveFbFriendInvite on sonafire as per logged in user's request.
+ */ 
+
+-(MKNetworkOperation*) SaveFbFriendInvite:(LoginResponseBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userFbId:(NSString *)userFbId frndFbId:(NSMutableArray *)frndFbId userId:(NSString *)userId
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    [dictUserName setValue:userFbId forKey:@"userFbId"];
+    [dictUserName setValue:frndFbId forKey:@"frndFbId"];
+    [dictUserName setValue:userId forKey:@"userId"];
+    
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    MKNetworkOperation *op = [self operationWithPath:saveFbInviteFriends params:httpDict httpMethod:@"POST"];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+        
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"results"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+
+#pragma mark - Update share Limit
+-(MKNetworkOperation*) SongShareLimitSave:(ReturnDictionary) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId songId:(NSString *)songId
+{
+    NSMutableDictionary *dictUserName=[[NSMutableDictionary alloc] init];
+    [dictUserName setValue:userId forKey:@"userId"];
+    [dictUserName setValue:songId forKey:@"songId"];
+    
+    NSString *jsonString =   [dictUserName jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    MKNetworkOperation *op = [self operationWithPath:updateSharelimit params:httpDict httpMethod:@"POST"];
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice. 
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+      
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock(object);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+
+#pragma mark - My Activities
+
+/**
+ *  This function is used to fetch the list of All shared by me or to me involving the logged in user.
+ */
+
+-(MKNetworkOperation*) AllShares:(BrowseUserslistBlock) completionBlock onError:(MKNKErrorBlock) errorBlock userId:(NSString *)userId offset:(NSString *)offset 
+{
+    NSMutableDictionary *dictSongWall=[[NSMutableDictionary alloc] init];
+    
+    [dictSongWall setValue:userId forKey:@"userId"];
+    [dictSongWall setValue:offset forKey:@"offset"];
+    
+    NSString *jsonString =   [dictSongWall jsonEncodedKeyValueString];
+    NSMutableDictionary *httpDict = [[NSMutableDictionary alloc] init];
+    [httpDict setValue:jsonString forKey:@"body_dict"];
+    
+    MKNetworkOperation *op = [self operationWithPath:AllSharedToBYMe params:httpDict httpMethod:@"POST"];
+    
+    [op onCompletion:^(MKNetworkOperation *completedOperation)
+     {
+         // the completionBlock will be called twice.
+         // if you are interested only in new values, move that code within the else block
+         NSData *data = [completedOperation responseData];
+         
+         id object = [data objectFromJSONData];
+         
+         
+         completionBlock([object valueForKey:@"AllSongsSharedToBYMe"]);
+         
+     }onError:^(NSError* error) {
+         
+         errorBlock(error);
+     }];
+    
+    [self enqueueOperation:op];
+    
+    return op;
+}
+@end
